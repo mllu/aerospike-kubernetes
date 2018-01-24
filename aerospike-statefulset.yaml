@@ -14,8 +14,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 # ------------------------------------------------------------------------------
-
-
 # Headless service to provide DNS lookup
 apiVersion: v1
 kind: Service
@@ -35,7 +33,7 @@ spec:
   selector:
     # Tells which pods are part of the DNS record
     app: aerospike
-----
+---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -47,35 +45,19 @@ spec:
     metadata:
       labels:
         app: aerospike
-      annotations:
-        # Do not wait on user acknowledgement for pod startup, default behavior in StatefulSet
-        # pod.alpha.kubernetes.io/initialized: "true"
-        # Init containers run on host before pod startup
-        pod.alpha.kubernetes.io/init-containers: '[
-          {
-             "name": "install",
-             "image": "my.docker.repo/kube/aerospike-install",
-             "env": [
-                  {
-                      "name": "POD_NAMESPACE",
-                      "valueFrom": {
-                          "fieldRef": {
-                              "apiVersion": "v1",
-                              "fieldPath": "metadata.namespace"
-                          }
-                      }
-                   }
-                ],
-             "volumeMounts": [
-               {
-                 "name":"confdir",
-                 "mountPath": "/etc/aerospike"
-               }
-             ]
-          }
-        ]'
     spec:
       terminationGracePeriodSeconds: 30
+      initContainers:
+      - name: install
+        image: <YOUR_DOCKER_REGISTRY>/aerospike-install
+        volumeMounts:
+        - name: confdir
+          mountPath: /etc/aerospike
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
       containers:
       - name: aerospike
         image: aerospike/aerospike-server
@@ -94,17 +76,16 @@ spec:
         volumeMounts: 
         - name: confdir
           mountPath: /etc/aerospike
-        # Downward API:
         env:
-        - name: MY_POD_NAME
+        - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: MY_POD_NAMESPACE
+        - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: MY_POD_IP
+        - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
